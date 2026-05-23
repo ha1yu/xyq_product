@@ -12,19 +12,14 @@
           <el-menu-item index="/trend">走势分析</el-menu-item>
         </el-menu>
         <div class="user-area">
-          <template v-if="userStore.isLoggedIn">
-            <el-dropdown>
-              <span class="user-name"><el-icon><User /></el-icon> 管理员</span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-          <template v-else>
-            <el-button type="primary" size="small" @click="$router.push('/login')">登录</el-button>
-          </template>
+          <el-dropdown>
+            <span class="user-name"><el-icon><User /></el-icon> 管理员</span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
     </el-header>

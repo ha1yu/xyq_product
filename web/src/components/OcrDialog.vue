@@ -38,6 +38,10 @@
         <span>价格日期：</span>
         <el-date-picker v-model="priceDate" type="date" value-format="YYYY-MM-DD"
           placeholder="选择日期" style="width: 180px" />
+        <span style="margin-left:15px;">未匹配商品分类：</span>
+        <el-select v-model="defaultCategoryId" style="width: 120px">
+          <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+        </el-select>
       </div>
 
       <el-table :data="ocrItems" border size="small" style="margin-top:10px;">
@@ -49,7 +53,7 @@
         </el-table-column>
         <el-table-column label="价格（万两）" width="140">
           <template #default="{ row }">
-            <el-input-number v-model="row.price" :precision="1" :step="0.5" :min="0" size="small"
+            <el-input-number v-model="row.price" :step="0.5" :min="0" size="small"
               controls-position="right" style="width:100%" />
           </template>
         </el-table-column>
@@ -71,7 +75,7 @@
       <div style="margin-top:15px; text-align:right;">
         <el-button @click="visible = false">取消</el-button>
         <el-button type="primary" @click="doBatchSave" :loading="saving" :disabled="matchedItems.length === 0">
-          录入 {{ matchedItems.length }} 项
+          录入（有价格 {{ matchedItems.length }} 项）
         </el-button>
       </div>
     </div>
@@ -79,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '../api'
 
@@ -101,6 +105,17 @@ const previewUrl = ref('')
 const imageBase64 = ref('')
 const ocrItems = ref([])
 const priceDate = ref(new Date().toISOString().split('T')[0])
+const categories = ref([])
+const defaultCategoryId = ref(null)
+
+onMounted(async () => {
+  try {
+    categories.value = await api.getCategories()
+    // Default to "其他" category, or the first one
+    const other = categories.value.find(c => c.name === '其他')
+    defaultCategoryId.value = other ? other.id : (categories.value[0]?.id || 1)
+  } catch (_) {}
+})
 
 watch(visible, (v) => {
   if (v) {
@@ -124,20 +139,55 @@ const clearImage = () => {
   imageBase64.value = ''
 }
 
+// Parse OCR raw text as fallback when backend returns null items
+function parseRawContent(raw) {
+  if (!raw) return []
+
+  // Step 1: Remove markdown code block markers if present
+  let cleaned = raw.replace(/```[\w]*/g, '').trim()
+
+  // Step 2: Try parsing the whole fixed-up array (if [ and ] exist)
+  const start = cleaned.indexOf('[')
+  const end = cleaned.lastIndexOf(']')
+  if (start >= 0 && end > start) {
+    let jsonStr = cleaned.slice(start, end + 1)
+    jsonStr = jsonStr.replace(/}\s*{/g, '},{')
+    try {
+      const result = JSON.parse(jsonStr)
+      if (Array.isArray(result) && result.length > 0) return result
+    } catch (_) {}
+  }
+
+  // Step 3: Fallback - extract each individual { ... } object.
+  // AI models often omit commas between objects and may omit the closing ].
+  // Individual objects are always valid JSON on their own.
+  const items = []
+  const objRegex = /\{[^}]*\}/g
+  let match
+  while ((match = objRegex.exec(cleaned)) !== null) {
+    try {
+      const obj = JSON.parse(match[0])
+      if (obj.name) items.push({ name: obj.name, price: Number(obj.price) || 0 })
+    } catch (_) {}
+  }
+  return items
+}
+
 const doOcr = async () => {
   loading.value = true
   try {
     const res = await api.ocrRecognize({ image: imageBase64.value })
-    const items = res.items || []
+    // Use backend items, or fall back to frontend parsing of raw content
+    let items = res.items && res.items.length > 0 ? res.items : parseRawContent(res.raw)
     if (items.length === 0) {
       ElMessage.warning('未识别到商品，请尝试更清晰的图片')
       return
     }
-    // Try to match with existing products
     ocrItems.value = items.map(item => ({
-      name: item.name,
-      price: item.price,
-      product_id: findProduct(item.name)
+      name: item.name || '',
+      // 游戏截图显示的价格单位是"两"，系统存储单位是"万两"，除以10000转换
+      price: (Number(item.price) || 0) / 10000,
+      product_id: findProduct(item.name || '')
     }))
     step.value = 2
   } catch (e) {
@@ -163,7 +213,7 @@ const queryProducts = (queryString, cb) => {
 }
 
 const matchedItems = computed(() =>
-  ocrItems.value.filter(item => item.product_id && item.price > 0)
+  ocrItems.value.filter(item => item.price > 0)
 )
 
 const doBatchSave = async () => {
@@ -173,13 +223,38 @@ const doBatchSave = async () => {
   }
   saving.value = true
   try {
-    const items = matchedItems.value.map(item => ({
-      product_id: item.product_id,
-      price_date: priceDate.value,
-      price: item.price
-    }))
-    await api.batchCreatePrices({ items })
-    ElMessage.success(`成功录入 ${items.length} 条价格记录`)
+    // First: auto-create products for unmatched items
+    const saveItems = []
+    for (const item of ocrItems.value) {
+      if (!item.price || item.price <= 0) continue
+      let pid = item.product_id
+      if (!pid && item.name) {
+        try {
+          const res = await api.createProduct({
+            name: item.name,
+            category_id: defaultCategoryId.value,
+            remark: 'OCR自动创建'
+          })
+          pid = res.id
+        } catch (e) {
+          ElMessage.warning(`商品"${item.name}"创建失败，已跳过`)
+          continue
+        }
+      }
+      if (pid) {
+        saveItems.push({
+          product_id: pid,
+          price_date: priceDate.value,
+          price: item.price
+        })
+      }
+    }
+    if (saveItems.length === 0) {
+      ElMessage.warning('没有可录入的数据')
+      return
+    }
+    await api.batchCreatePrices({ items: saveItems })
+    ElMessage.success(`成功录入 ${saveItems.length} 条价格记录`)
     emit('saved')
     visible.value = false
   } catch (e) {

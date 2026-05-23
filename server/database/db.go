@@ -39,7 +39,7 @@ func createTables() error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS products (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
+			name TEXT NOT NULL UNIQUE,
 			category_id INTEGER NOT NULL,
 			remark TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

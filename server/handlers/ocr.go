@@ -3,20 +3,21 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type OcrHandler struct {
-	Endpoint string // e.g. http://192.168.0.105:7890/v1/chat/completions
-	Model    string // e.g. glm-ocr
+	Endpoint string
+	Model    string
 }
 
 type ocrRequest struct {
-	Image string `json:"image"` // base64 encoded image
+	Image string `json:"image"`
 }
 
 type OcrItem struct {
@@ -35,7 +36,6 @@ func (h *OcrHandler) Recognize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call local AI model
 	prompt := `请识别这张图片中所有梦幻西游游戏相关的商品名称和对应价格（单位：万两）。请严格按照以下JSON数组格式输出，不要输出其他内容：
 [{"name":"商品名","price":价格数字}]
 如果没有识别到商品和价格，请输出空数组 []`
@@ -67,26 +67,25 @@ func (h *OcrHandler) Recognize(w http.ResponseWriter, r *http.Request) {
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 60}
+	client := &http.Client{Timeout: 180 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		writeError(w, "AI model request failed: "+err.Error(), http.StatusBadGateway)
+		writeError(w, "AI模型请求失败: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		writeError(w, "read response error", http.StatusInternalServerError)
+		writeError(w, "读取响应失败", http.StatusInternalServerError)
 		return
 	}
 
 	if resp.StatusCode != 200 {
-		writeError(w, "AI model error: "+string(respBody), resp.StatusCode)
+		writeError(w, "AI模型返回错误: "+string(respBody), resp.StatusCode)
 		return
 	}
 
-	// Parse OpenAI-compatible response
 	var chatResp struct {
 		Choices []struct {
 			Message struct {
@@ -95,12 +94,15 @@ func (h *OcrHandler) Recognize(w http.ResponseWriter, r *http.Request) {
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(respBody, &chatResp); err != nil || len(chatResp.Choices) == 0 {
-		writeError(w, "parse AI response error", http.StatusInternalServerError)
+		writeError(w, "解析AI响应失败", http.StatusInternalServerError)
 		return
 	}
 
 	content := chatResp.Choices[0].Message.Content
+	log.Printf("OCR raw content: %q", content)
+
 	items := parseOcrResult(content)
+	log.Printf("OCR parsed items: %d items", len(items))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -110,72 +112,53 @@ func (h *OcrHandler) Recognize(w http.ResponseWriter, r *http.Request) {
 }
 
 func parseOcrResult(content string) []OcrItem {
-	// Try to extract JSON array from the response
-	// Model may wrap it in ```json ... ``` or add extra text
+	// Strategy 1: If we have both [ and ], try fixing missing commas and parsing the whole array.
+	if start := strings.Index(content, "["); start >= 0 {
+		if end := strings.LastIndex(content, "]"); end > start {
+			fixed := fixMissingCommas(content[start : end+1])
+			var arr []struct {
+				Name  string  `json:"name"`
+				Price float64 `json:"price"`
+			}
+			if err := json.Unmarshal([]byte(fixed), &arr); err == nil && len(arr) > 0 {
+				items := make([]OcrItem, 0, len(arr))
+				for _, it := range arr {
+					if it.Name != "" {
+						items = append(items, OcrItem{Name: it.Name, Price: it.Price})
+					}
+				}
+				if len(items) > 0 {
+					return items
+				}
+			}
+		}
+	}
+
+	// Strategy 2: Extract each { ... } object individually and parse separately.
+	// AI models often omit commas between objects AND may omit the closing ].
+	// Individual objects are always valid JSON on their own.
 	var items []OcrItem
-
-	// Find JSON array in content
-	jsonStr := extractJSONArray(content)
-	if jsonStr == "" {
-		return items
+	reObj := regexp.MustCompile(`\{[^}]*\}`)
+	for _, m := range reObj.FindAllString(content, -1) {
+		var obj struct {
+			Name  string  `json:"name"`
+			Price float64 `json:"price"`
+		}
+		if err := json.Unmarshal([]byte(m), &obj); err != nil {
+			continue
+		}
+		if obj.Name != "" {
+			items = append(items, OcrItem{Name: obj.Name, Price: obj.Price})
+		}
 	}
 
-	// Try parsing as array of objects
-	var rawItems []struct {
-		Name  string  `json:"name"`
-		Price float64 `json:"price"`
-	}
-	if err := json.Unmarshal([]byte(jsonStr), &rawItems); err != nil {
-		// Try alternate field names
-		var altItems []struct {
-			Name      string  `json:"商品名"`
-			Price     float64 `json:"价格"`
-			PriceStr  string  `json:"price"`
-			NameAlt   string  `json:"商品名称"`
-			PriceAlt  string  `json:"价格（万两）"`
-		}
-		if err2 := json.Unmarshal([]byte(jsonStr), &altItems); err2 != nil {
-			return items
-		}
-		for _, it := range altItems {
-			name := it.Name
-			if name == "" {
-				name = it.NameAlt
-			}
-			price := it.Price
-			if price == 0 && it.PriceStr != "" {
-				fmt.Sscanf(it.PriceStr, "%f", &price)
-			}
-			if price == 0 && it.PriceAlt != "" {
-				fmt.Sscanf(it.PriceAlt, "%f", &price)
-			}
-			if name != "" {
-				items = append(items, OcrItem{Name: name, Price: price})
-			}
-		}
-		return items
-	}
-
-	for _, it := range rawItems {
-		if it.Name != "" {
-			items = append(items, OcrItem{Name: it.Name, Price: it.Price})
-		}
+	if items == nil {
+		return []OcrItem{}
 	}
 	return items
 }
 
-func extractJSONArray(s string) string {
-	// First try to find content between ```json and ```
-	re := regexp.MustCompile("(?s)```(?:json)?\\s*\\n?(\\[.*?\\])\\s*\\n?```")
-	if matches := re.FindStringSubmatch(s); len(matches) > 1 {
-		return matches[1]
-	}
-
-	// Find first [ ... ] block
-	start := strings.Index(s, "[")
-	end := strings.LastIndex(s, "]")
-	if start >= 0 && end > start {
-		return s[start : end+1]
-	}
-	return ""
+func fixMissingCommas(s string) string {
+	return regexp.MustCompile(`}\s+{`).ReplaceAllString(s, "},{")
 }
+

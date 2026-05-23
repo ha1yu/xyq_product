@@ -1,6 +1,5 @@
 <template>
   <div class="login-container">
-    <div class="login-bg"></div>
     <el-card class="login-card" shadow="always">
       <div class="login-header">
         <h1>⚔️ 梦幻西游物价追踪</h1>
@@ -20,24 +19,19 @@
           </el-button>
         </el-form-item>
       </el-form>
-      <div class="login-tip">
-        <el-text type="info">游客可直接浏览价格，管理员登录后可编辑</el-text>
-      </div>
-      <div class="login-guest">
-        <el-button link type="primary" @click="goHome">直接浏览 →</el-button>
-      </div>
     </el-card>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import api from '../api'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const formRef = ref(null)
 const loading = ref(false)
@@ -56,15 +50,13 @@ const handleLogin = async () => {
     const res = await api.login(form)
     userStore.setToken(res.token)
     ElMessage.success('登录成功')
-    router.push('/')
+    router.push(route.query.redirect || '/')
   } catch (e) {
     ElMessage.error(e.response?.data?.error || '登录失败')
   } finally {
     loading.value = false
   }
 }
-
-const goHome = () => router.push('/')
 </script>
 
 <style scoped>
@@ -93,13 +85,5 @@ const goHome = () => router.push('/')
   color: #909399;
   margin: 0;
   font-size: 14px;
-}
-.login-tip {
-  text-align: center;
-  margin-top: 10px;
-}
-.login-guest {
-  text-align: center;
-  margin-top: 5px;
 }
 </style>

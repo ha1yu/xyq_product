@@ -104,6 +104,12 @@ func main() {
 			if _, err := fs.Stat(staticSub, path); err != nil {
 				r.URL.Path = "/"
 			}
+			// Disable cache for index.html, allow cache for hashed assets
+			if path == "index.html" {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+			}
 			fileServer.ServeHTTP(w, r)
 		})
 	}

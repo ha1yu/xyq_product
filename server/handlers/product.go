@@ -16,8 +16,12 @@ type ProductHandler struct {
 
 func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	query := `SELECT p.id, p.name, p.category_id, c.name as category_name, p.remark, p.created_at, p.updated_at,
-		(SELECT price FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1) as latest_price,
-		(SELECT price_date FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1) as latest_date
+		(SELECT price FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1 OFFSET 0),
+		(SELECT price_date FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1 OFFSET 0),
+		(SELECT price FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1 OFFSET 1),
+		(SELECT price_date FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1 OFFSET 1),
+		(SELECT price FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1 OFFSET 2),
+		(SELECT price_date FROM prices WHERE product_id = p.id ORDER BY price_date DESC LIMIT 1 OFFSET 2)
 		FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE 1=1`
 	args := []interface{}{}
 
@@ -38,35 +42,49 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	type Product struct {
-		ID           int     `json:"id"`
-		Name         string  `json:"name"`
-		CategoryID   int     `json:"category_id"`
-		CategoryName string  `json:"category_name"`
-		Remark       string  `json:"remark"`
-		LatestPrice  *float64 `json:"latestPrice"`
-		LatestDate   *string  `json:"latestDate"`
-		CreatedAt    string  `json:"created_at"`
-		UpdatedAt    string  `json:"updated_at"`
+	type PriceItem struct {
+		Price float64 `json:"price"`
+		Date  string  `json:"date"`
 	}
 
-	var products []Product
-	for rows.Next() {
-		var p Product
-		rows.Scan(&p.ID, &p.Name, &p.CategoryID, &p.CategoryName, &p.Remark, &p.CreatedAt, &p.UpdatedAt, &p.LatestPrice, &p.LatestDate)
-		// Format latestDate to just the date part
-		if p.LatestDate != nil && len(*p.LatestDate) >= 10 {
-			d := (*p.LatestDate)[:10]
-			p.LatestDate = &d
-		}
-		products = append(products, p)
+	type ProductResp struct {
+		ID           int         `json:"id"`
+		Name         string      `json:"name"`
+		CategoryID   int         `json:"category_id"`
+		CategoryName string      `json:"category_name"`
+		Remark       string      `json:"remark"`
+		Prices       []PriceItem `json:"prices"`
+		CreatedAt    string      `json:"created_at"`
+		UpdatedAt    string      `json:"updated_at"`
 	}
-	if products == nil {
-		products = []Product{}
+
+	var resp []ProductResp
+	for rows.Next() {
+		var p ProductResp
+		var pr1, pr2, pr3 *float64
+		var pd1, pd2, pd3 *string
+		rows.Scan(&p.ID, &p.Name, &p.CategoryID, &p.CategoryName, &p.Remark,
+			&p.CreatedAt, &p.UpdatedAt,
+			&pr1, &pd1, &pr2, &pd2, &pr3, &pd3)
+
+		p.Prices = []PriceItem{}
+		if pr1 != nil && pd1 != nil {
+			p.Prices = append(p.Prices, PriceItem{Price: *pr1, Date: (*pd1)[:10]})
+		}
+		if pr2 != nil && pd2 != nil {
+			p.Prices = append(p.Prices, PriceItem{Price: *pr2, Date: (*pd2)[:10]})
+		}
+		if pr3 != nil && pd3 != nil {
+			p.Prices = append(p.Prices, PriceItem{Price: *pr3, Date: (*pd3)[:10]})
+		}
+		resp = append(resp, p)
+	}
+	if resp == nil {
+		resp = []ProductResp{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(products)
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +105,20 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	res, err := h.DB.Exec("INSERT INTO products (name, category_id, remark) VALUES (?, ?, ?)",
 		req.Name, req.CategoryID, req.Remark)
 	if err != nil {
+		// Duplicate name -> return existing product ID
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			var existingID int
+			h.DB.QueryRow("SELECT id FROM products WHERE name = ?", req.Name).Scan(&existingID)
+			if existingID > 0 {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":     existingID,
+					"exists": true,
+					"name":   req.Name,
+				})
+				return
+			}
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

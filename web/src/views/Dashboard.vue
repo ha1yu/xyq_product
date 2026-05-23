@@ -12,21 +12,14 @@
           <el-menu-item index="/trend">走势分析</el-menu-item>
         </el-menu>
         <div class="user-area">
-          <template v-if="userStore.isLoggedIn">
-            <el-dropdown>
-              <span class="user-name">
-                <el-icon><User /></el-icon> 管理员
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-          <template v-else>
-            <el-button type="primary" size="small" @click="$router.push('/login')">登录</el-button>
-          </template>
+          <el-dropdown>
+            <span class="user-name"><el-icon><User /></el-icon> 管理员</span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
     </el-header>
@@ -42,17 +35,19 @@
       <el-table :data="filteredProducts" stripe border style="width:100%"
         :default-sort="{ prop: 'id', order: 'ascending' }" max-height="calc(100vh - 200px)">
         <el-table-column prop="id" label="ID" width="60" sortable />
-        <el-table-column prop="name" label="商品名称" min-width="150" />
-        <el-table-column prop="category_name" label="分类" width="100" />
-        <el-table-column label="最新价格" width="120">
+        <el-table-column prop="name" label="商品名称" min-width="130" />
+        <el-table-column prop="category_name" label="分类" width="90" />
+        <el-table-column label="最近3次价格" min-width="280">
           <template #default="{ row }">
-            <span v-if="row.latestPrice !== null" class="price-val">
-              {{ row.latestPrice }} 万两
-            </span>
-            <span v-else class="price-na">--</span>
+            <div class="price-group">
+              <div v-for="(p, i) in row.prices" :key="i" class="price-item">
+                <span class="price-val">{{ p.price }} 万两</span>
+                <span class="price-date">{{ p.date }}</span>
+              </div>
+              <span v-if="!row.prices || row.prices.length === 0" class="price-na">--</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="latestDate" label="更新日期" width="120" />
         <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
       </el-table>
     </el-main>
@@ -94,15 +89,9 @@ const loadData = async () => {
     categories.value = cats
     products.value = prods
     // Load latest prices for each product
-    await loadLatestPrices()
   } catch (e) {
     ElMessage.error('加载数据失败')
   }
-}
-
-const loadLatestPrices = async () => {
-  // Batch load prices - we'll get them all at once via trend API
-  // For now, show products without prices initially
 }
 
 const handleSearch = () => {
@@ -188,5 +177,25 @@ onMounted(loadData)
 }
 .price-na {
   color: #c0c4cc;
+}
+.price-group {
+  display: flex;
+  gap: 12px;
+}
+.price-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+  padding: 2px 6px;
+  border-right: 1px solid #ebeef5;
+}
+.price-item:last-child {
+  border-right: none;
+}
+.price-date {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 2px;
 }
 </style>
