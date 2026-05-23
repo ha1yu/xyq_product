@@ -48,7 +48,7 @@
             <div class="card-footer">
               <div v-if="product.prices && product.prices.length > 0" class="price-group">
                 <div v-for="(p, i) in product.prices" :key="i" class="price-item">
-                  <span class="price-val">{{ p.price }} 万两</span>
+                  <span class="price-val">{{ fmtPrice(p.price) }} 万两</span>
                   <span class="price-date">{{ p.date }}</span>
                 </div>
               </div>
@@ -92,6 +92,7 @@ const filteredProducts = computed(() => {
   return list
 })
 
+const fmtPrice = (v) => Math.round(v * 100) / 100
 const showEmptyState = computed(() => !loading.value && products.value.length === 0)
 const showNoResults = computed(() => !loading.value && products.value.length > 0 && filteredProducts.value.length === 0)
 
@@ -206,6 +207,7 @@ onMounted(loadData)
 .price-val {
   color: #e6a23c;
   font-weight: bold;
+  white-space: nowrap;
 }
 .price-na {
   color: #c0c4cc;

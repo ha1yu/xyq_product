@@ -1,6 +1,6 @@
 <template>
   <el-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)"
-    :title="product?.name + ' - 价格走势'" width="750px" top="5vh" :close-on-click-modal="false">
+    :title="product?.name + ' - 价格走势'" width="750px" top="5vh">
     <div class="trend-dialog-body" v-loading="loading" element-loading-text="加载中...">
       <div v-if="!loading && priceCount > 0" class="stats-bar">
         <div class="stat-item">
