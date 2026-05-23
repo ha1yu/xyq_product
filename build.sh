@@ -30,7 +30,7 @@ cd ..
 echo ""
 echo ">>> [3/3] 初始化数据库..."
 if [ ! -f "data/mhxy.db" ]; then
-    ./xyq_product --db data/mhxy.db
+    ./xyq_product
     echo "数据库初始化完成"
 else
     echo "数据库已存在，跳过初始化"
