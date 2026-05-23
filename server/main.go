@@ -21,8 +21,6 @@ func main() {
 	dbPath := flag.String("db", "data/mhxy.db", "database path")
 	ocrEndpoint := flag.String("ocr-endpoint", "http://192.168.0.105:7890/v1/chat/completions", "OCR AI model endpoint")
 	ocrModel := flag.String("ocr-model", "glm-ocr", "OCR AI model name")
-	initDB := flag.Bool("init-db", false, "initialize database and seed data")
-	xlsxPath := flag.String("xlsx", "", "path to xlsx file for seeding")
 	flag.Parse()
 
 	if err := database.InitDB(*dbPath, map[string]string{
@@ -32,13 +30,6 @@ func main() {
 		log.Fatalf("Failed to init database: %v", err)
 	}
 	log.Printf("Database initialized: %s", *dbPath)
-
-	if *initDB {
-		if err := database.SeedData(*xlsxPath); err != nil {
-			log.Fatalf("Failed to seed data: %v", err)
-		}
-		log.Println("Database seeded successfully!")
-	}
 
 	mux := http.NewServeMux()
 

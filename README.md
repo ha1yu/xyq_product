@@ -25,8 +25,7 @@ xyq_product/
 │   ├── main.go               # 入口，路由注册，中间件
 │   ├── go.mod
 │   ├── database/
-│   │   ├── db.go             # 数据库初始化 + 建表
-│   │   └── seed.go           # Excel 导入 + 初始数据
+│   │   └── db.go             # 数据库初始化 + 建表 + 默认数据
 │   │   ├── handlers/
 │   │   │   ├── auth.go           # 登录认证
 │   │   │   ├── category.go       # 分类查询
@@ -107,7 +106,6 @@ xyq_product/
 3. **走势分析** — ECharts 折线图，支持多商品对比
 4. **AI 图片识别** — 上传游戏截图，AI 自动识别商品名称和价格，未匹配商品自动创建，批量录入价格
 5. **系统设置** — 在线配置 OCR 地址/模型、修改管理员密码
-6. **Excel 数据导入** — 从 `梦幻将军物价表.xlsx` 导入 132+ 商品、7 个日期价格数据
 
 ---
 
@@ -131,7 +129,7 @@ xyq_product/
 该脚本会依次：
 1. 安装前端依赖并构建（输出到 `server/static/`）
 2. 编译 Go 后端
-3. 从 Excel 初始化数据库
+3. 初始化数据库（自动建表、创建管理员和分类）
 
 ### 手动启动
 
@@ -152,8 +150,6 @@ cd server && go run .    # 后端 http://localhost:8081
 | `--db` | `data/mhxy.db` | 数据库路径 |
 | `--ocr-endpoint` | `http://192.168.0.105:7890/v1/chat/completions` | OCR AI 模型地址 |
 | `--ocr-model` | `glm-ocr` | OCR AI 模型名称 |
-| `--init-db` | `false` | 初始化数据库并导入 Excel |
-| `--xlsx` | `""` | Excel 文件路径 |
 
 ### 管理员账号
 
@@ -165,8 +161,6 @@ cd server && go run .    # 后端 http://localhost:8081
 ## 待改进问题
 
 - JWT 密钥硬编码在 `middleware/auth.go` 中
-- 管理员初始密码以固定 bcrypt hash 形式写在 `database/db.go` 中
-- OCR 服务地址默认连接到内网 `192.168.0.105:7890`（可通过命令行参数覆盖）
 
 ---
 
