@@ -32,24 +32,32 @@
         <el-tab-pane label="全部" name="all" />
         <el-tab-pane v-for="cat in categories" :key="cat.id" :label="cat.name" :name="String(cat.id)" />
       </el-tabs>
-      <el-table :data="filteredProducts" stripe border style="width:100%"
-        :default-sort="{ prop: 'id', order: 'ascending' }" max-height="calc(100vh - 200px)">
-        <el-table-column prop="id" label="ID" width="60" sortable />
-        <el-table-column prop="name" label="商品名称" min-width="130" />
-        <el-table-column prop="category_name" label="分类" width="90" />
-        <el-table-column label="最近3次价格" min-width="280">
-          <template #default="{ row }">
-            <div class="price-group">
-              <div v-for="(p, i) in row.prices" :key="i" class="price-item">
-                <span class="price-val">{{ p.price }} 万两</span>
-                <span class="price-date">{{ p.date }}</span>
-              </div>
-              <span v-if="!row.prices || row.prices.length === 0" class="price-na">--</span>
+      <div class="dashboard-content" v-loading="loading" element-loading-text="加载中..." element-loading-background="rgba(245,245,245,0.8)">
+        <el-empty v-if="showEmptyState" description="暂无商品数据" />
+        <el-empty v-else-if="showNoResults" description="未找到匹配的商品" />
+        <div v-else class="product-grid">
+          <div v-for="product in filteredProducts" :key="product.id" class="product-card" @click="showTrend(product)">
+            <div class="card-header">
+              <span class="card-id">#{{ product.id }}</span>
+              <el-tag size="small" effect="plain">{{ product.category_name }}</el-tag>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
-      </el-table>
+            <div class="card-body">
+              <div class="card-name">{{ product.name }}</div>
+              <div v-if="product.remark" class="card-remark">{{ product.remark }}</div>
+            </div>
+            <div class="card-footer">
+              <div v-if="product.prices && product.prices.length > 0" class="price-group">
+                <div v-for="(p, i) in product.prices" :key="i" class="price-item">
+                  <span class="price-val">{{ p.price }} 万两</span>
+                  <span class="price-date">{{ p.date }}</span>
+                </div>
+              </div>
+              <span v-else class="price-na">暂无价格记录</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <PriceTrendDialog v-model="trendVisible" :product="trendProduct" />
     </el-main>
   </el-container>
 </template>
@@ -60,6 +68,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import api from '../api'
+import PriceTrendDialog from '../components/PriceTrendDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,6 +79,9 @@ const categories = ref([])
 const products = ref([])
 const keyword = ref('')
 const activeCategory = ref('all')
+const loading = ref(false)
+const trendVisible = ref(false)
+const trendProduct = ref(null)
 let searchTimer = null
 
 const filteredProducts = computed(() => {
@@ -80,7 +92,11 @@ const filteredProducts = computed(() => {
   return list
 })
 
+const showEmptyState = computed(() => !loading.value && products.value.length === 0)
+const showNoResults = computed(() => !loading.value && products.value.length > 0 && filteredProducts.value.length === 0)
+
 const loadData = async () => {
+  loading.value = true
   try {
     const [cats, prods] = await Promise.all([
       api.getCategories(),
@@ -88,9 +104,10 @@ const loadData = async () => {
     ])
     categories.value = cats
     products.value = prods
-    // Load latest prices for each product
   } catch (e) {
     ElMessage.error('加载数据失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -100,7 +117,12 @@ const handleSearch = () => {
     const params = {}
     if (keyword.value) params.keyword = keyword.value
     if (activeCategory.value !== 'all') params.category_id = activeCategory.value
-    products.value = await api.getProducts(params)
+    loading.value = true
+    try {
+      products.value = await api.getProducts(params)
+    } finally {
+      loading.value = false
+    }
   }, 300)
 }
 
@@ -108,12 +130,22 @@ const handleCategoryChange = async (tab) => {
   const params = {}
   if (tab !== 'all') params.category_id = tab
   if (keyword.value) params.keyword = keyword.value
-  products.value = await api.getProducts(params)
+  loading.value = true
+  try {
+    products.value = await api.getProducts(params)
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleLogout = () => {
   userStore.logout()
   ElMessage.success('已退出登录')
+}
+
+const showTrend = (product) => {
+  trendProduct.value = product
+  trendVisible.value = true
 }
 
 onMounted(loadData)
@@ -164,7 +196,7 @@ onMounted(loadData)
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: auto;
 }
 .dashboard-toolbar {
   margin-bottom: 15px;
@@ -180,15 +212,14 @@ onMounted(loadData)
 }
 .price-group {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 .price-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 70px;
-  padding: 2px 6px;
-  border-right: 1px solid #ebeef5;
+  flex: 0 0 65px;
+  padding: 2px 4px;
 }
 .price-item:last-child {
   border-right: none;
@@ -197,5 +228,83 @@ onMounted(loadData)
   font-size: 11px;
   color: #909399;
   margin-top: 2px;
+}
+
+/* Card layout */
+.dashboard-content {
+  position: relative;
+  min-height: 200px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.product-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #ebeef5;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.product-card:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-id {
+  font-size: 12px;
+  color: #909399;
+  font-family: 'Courier New', monospace;
+}
+
+.card-body {
+  flex: 1;
+  margin-bottom: 12px;
+}
+
+.card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.card-remark {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 8px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.card-footer {
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
 }
 </style>

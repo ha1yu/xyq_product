@@ -49,7 +49,8 @@ xyq_product/
 │   │   │   ├── Products.vue  # 商品管理（CRUD + OCR）
 │   │   │   └── Trend.vue     # 走势分析（ECharts 折线图）
 │   │   └── components/
-│   │       ├── OcrDialog.vue # 拍照识别录入对话框
+│   │       ├── OcrDialog.vue       # 拍照识别录入对话框
+│   │       ├── PriceTrendDialog.vue # 价格走势弹窗（ECharts 折线图）
 │   │       ├── PriceTable.vue
 │   │       ├── ProductForm.vue
 │   │       └── TrendChart.vue
