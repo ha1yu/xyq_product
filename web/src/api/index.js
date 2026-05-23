@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 10000
+  timeout: 120000 // OCR may take longer
 })
 
 api.interceptors.request.use(config => {
@@ -34,5 +34,8 @@ export default {
   getPrices: (productId) => api.get(`/products/${productId}/prices`),
   createPrice: (data) => api.post('/prices', data),
   deletePrice: (id) => api.delete(`/prices/${id}`),
-  getTrend: (productIds) => api.get('/trend', { params: { product_ids: productIds } })
+  getTrend: (productIds) => api.get('/trend', { params: { product_ids: productIds } }),
+  // OCR
+  ocrRecognize: (data) => api.post('/ocr', data),
+  batchCreatePrices: (data) => api.post('/prices/batch', data)
 }

@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-PORT=9095
+PORT=$((30000 + RANDOM % 10000))
 BASE_URL="http://localhost:$PORT"
 PASS=0
 FAIL=0

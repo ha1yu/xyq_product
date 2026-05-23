@@ -10,6 +10,7 @@ import (
 	"strings"
 	"github.com/mhxy/price-tracker/database"
 	"github.com/mhxy/price-tracker/handlers"
+	"github.com/mhxy/price-tracker/middleware"
 )
 
 //go:embed static/*
@@ -18,6 +19,8 @@ var staticFiles embed.FS
 func main() {
 	port := flag.String("port", "8081", "server port")
 	dbPath := flag.String("db", "data/mhxy.db", "database path")
+	ocrEndpoint := flag.String("ocr-endpoint", "http://192.168.0.105:7890/v1/chat/completions", "OCR AI model endpoint")
+	ocrModel := flag.String("ocr-model", "glm-ocr", "OCR AI model name")
 	initDB := flag.Bool("init-db", false, "initialize database and seed data")
 	xlsxPath := flag.String("xlsx", "", "path to xlsx file for seeding")
 	flag.Parse()
@@ -40,6 +43,7 @@ func main() {
 	productH := &handlers.ProductHandler{DB: database.DB}
 	priceH := &handlers.PriceHandler{DB: database.DB}
 	categoryH := &handlers.CategoryHandler{DB: database.DB}
+	ocrH := &handlers.OcrHandler{Endpoint: *ocrEndpoint, Model: *ocrModel}
 
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -59,6 +63,24 @@ func main() {
 
 	productH.RegisterRoutes(mux)
 	priceH.RegisterRoutes(mux)
+
+	// OCR endpoint
+	mux.HandleFunc("/api/ocr", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			middleware.AuthMiddleware(ocrH.Recognize)(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	})
+
+	// Batch price endpoint
+	mux.HandleFunc("/api/prices/batch", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			middleware.AuthMiddleware(priceH.BatchCreate)(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	})
 
 	mux.HandleFunc("/api/trend", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -90,7 +112,8 @@ func main() {
 	handler := recoveryMiddleware(corsMiddleware(loggingMiddleware(mux)))
 
 	addr := fmt.Sprintf("0.0.0.0:%s", *port)
-	log.Printf("Server starting on http://localhost%s", addr)
+	log.Printf("Server starting on http://%s", addr)
+	log.Printf("OCR model: %s @ %s", *ocrModel, *ocrEndpoint)
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}

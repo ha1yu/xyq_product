@@ -26,9 +26,14 @@
     <el-main class="app-main">
       <div class="page-title">
         <h2>商品管理</h2>
-        <el-button type="primary" @click="showAddDialog" :disabled="!userStore.isLoggedIn">
-          <el-icon><Plus /></el-icon> 新增商品
-        </el-button>
+        <div class="title-actions">
+          <el-button type="success" @click="ocrDialogVisible = true" :disabled="!userStore.isLoggedIn">
+            <el-icon><Camera /></el-icon> 拍照识别
+          </el-button>
+          <el-button type="primary" @click="showAddDialog" :disabled="!userStore.isLoggedIn">
+            <el-icon><Plus /></el-icon> 新增商品
+          </el-button>
+        </div>
       </div>
       <div class="filter-bar">
         <el-select v-model="filterCategory" placeholder="筛选分类" clearable style="width: 160px"
@@ -92,7 +97,6 @@
           </template>
         </el-table-column>
       </el-table>
-      <!-- Add price form -->
       <div v-if="addPriceVisible" style="margin-top:15px; padding:15px; background:#f5f5f5; border-radius:6px;">
         <el-form :inline="true">
           <el-form-item label="日期">
@@ -110,6 +114,9 @@
         </el-form>
       </div>
     </el-dialog>
+
+    <!-- OCR Dialog -->
+    <OcrDialog v-model="ocrDialogVisible" :products="products" @saved="onOcrSaved" />
   </el-container>
 </template>
 
@@ -119,6 +126,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import api from '../api'
+import OcrDialog from '../components/OcrDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -146,6 +154,8 @@ const prices = ref([])
 const priceProduct = ref(null)
 const addPriceVisible = ref(false)
 const newPrice = ref({ date: '', price: 0 })
+
+const ocrDialogVisible = ref(false)
 
 let loadTimer = null
 const debouncedLoad = () => {
@@ -236,6 +246,10 @@ const deletePrice = async (row) => {
   prices.value = await api.getPrices(priceProduct.value.id)
 }
 
+const onOcrSaved = () => {
+  loadProducts()
+}
+
 const handleLogout = () => {
   userStore.logout()
   ElMessage.success('已退出登录')
@@ -262,5 +276,6 @@ onMounted(() => {
 .app-main { padding: 20px; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 .page-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .page-title h2 { margin: 0; color: #303133; }
+.title-actions { display: flex; gap: 10px; }
 .filter-bar { display: flex; gap: 12px; margin-bottom: 15px; }
 </style>

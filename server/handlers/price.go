@@ -158,3 +158,57 @@ func writeError(w http.ResponseWriter, msg string, code int) {
 	w.WriteHeader(code)
 	fmt.Fprintf(w, `{"error":"%s"}`, msg)
 }
+
+func (h *PriceHandler) BatchCreate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Items []struct {
+			ProductID int     `json:"product_id"`
+			PriceDate string  `json:"price_date"`
+			Price     float64 `json:"price"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if len(req.Items) == 0 {
+		writeError(w, "items required", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := h.DB.Begin()
+	if err != nil {
+		writeError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare("INSERT OR REPLACE INTO prices (product_id, price_date, price) VALUES (?, ?, ?)")
+	if err != nil {
+		writeError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
+	inserted := 0
+	for _, item := range req.Items {
+		if item.ProductID == 0 || item.Price == 0 || item.PriceDate == "" {
+			continue
+		}
+		_, err := stmt.Exec(item.ProductID, item.PriceDate, item.Price)
+		if err == nil {
+			inserted++
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		writeError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":   "ok",
+		"inserted": inserted,
+	})
+}
