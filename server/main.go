@@ -39,6 +39,7 @@ func main() {
 	categoryH := &handlers.CategoryHandler{DB: database.DB}
 	ocrH := &handlers.OcrHandler{Endpoint: *ocrEndpoint, Model: *ocrModel, DB: database.DB}
 	settingsH := &handlers.SettingsHandler{DB: database.DB}
+	importH := &handlers.ImportHandler{DB: database.DB}
 
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -63,6 +64,15 @@ func main() {
 	mux.HandleFunc("/api/ocr", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			middleware.AuthMiddleware(ocrH.Recognize)(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	})
+
+	// Excel import endpoint
+	mux.HandleFunc("/api/import", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			middleware.AuthMiddleware(importH.ImportExcel)(w, r)
 			return
 		}
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

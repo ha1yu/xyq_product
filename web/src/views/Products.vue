@@ -28,6 +28,9 @@
       <div class="page-title">
         <h2>商品管理</h2>
         <div class="title-actions">
+          <el-button type="warning" @click="importDialogVisible = true">
+            <el-icon><Upload /></el-icon> Excel导入
+          </el-button>
           <el-button type="success" @click="ocrDialogVisible = true" >
             <el-icon><Camera /></el-icon> 拍照识别
           </el-button>
@@ -118,6 +121,7 @@
 
     <!-- OCR Dialog -->
     <OcrDialog v-model="ocrDialogVisible" :products="products" @saved="onOcrSaved" />
+    <ExcelImportDialog v-model="importDialogVisible" @saved="loadProducts" />
     <SettingsDialog v-model="settingsVisible" />
   </el-container>
 </template>
@@ -129,6 +133,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import api from '../api'
 import OcrDialog from '../components/OcrDialog.vue'
+import ExcelImportDialog from '../components/ExcelImportDialog.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
 
 const route = useRoute()
@@ -159,6 +164,7 @@ const addPriceVisible = ref(false)
 const newPrice = ref({ date: '', price: 0 })
 
 const ocrDialogVisible = ref(false)
+const importDialogVisible = ref(false)
 const settingsVisible = ref(false)
 
 let loadTimer = null

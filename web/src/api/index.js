@@ -41,5 +41,9 @@ export default {
   // Settings
   getSettings: () => api.get('/settings'),
   updateSettings: (data) => api.put('/settings', data),
-  changePassword: (data) => api.put('/settings/password', data)
+  changePassword: (data) => api.put('/settings/password', data),
+  // Import
+  importExcel: (formData) => api.post('/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000
+  })
 }

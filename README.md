@@ -32,6 +32,7 @@ xyq_product/
 │   │   │   ├── product.go        # 商品 CRUD
 │   │   │   ├── price.go          # 价格 CRUD + 批量 + 走势
 │   │   │   ├── ocr.go            # AI 图片识别
+│   │   │   ├── import.go          # Excel 文件导入
 │   │   │   └── settings.go       # 系统设置 + 密码修改
 │   ├── middleware/
 │   │   └── auth.go           # JWT 中间件
@@ -51,6 +52,7 @@ xyq_product/
 │   │   └── components/
 │   │       ├── OcrDialog.vue        # 拍照识别录入对话框
 │   │       ├── PriceTrendDialog.vue  # 价格走势弹窗（ECharts 折线图）
+│   │       ├── ExcelImportDialog.vue # Excel 文件导入弹窗
 │   │       ├── SettingsDialog.vue    # 系统设置弹窗（OCR 配置 + 密码修改）
 │   │       ├── PriceTable.vue
 │   │       ├── ProductForm.vue
@@ -93,6 +95,7 @@ xyq_product/
 | POST | `/api/prices/batch` | 是 | 批量录入价格 |
 | GET | `/api/trend` | 否 | 价格走势数据 |
 | POST | `/api/ocr` | 是 | AI 图片识别商品价格 |
+| POST | `/api/import` | 是 | Excel 文件导入商品价格 |
 | GET | `/api/settings` | 是 | 获取系统设置 |
 | PUT | `/api/settings` | 是 | 更新系统设置 |
 | PUT | `/api/settings/password` | 是 | 修改管理员密码 |
@@ -105,7 +108,8 @@ xyq_product/
 2. **商品管理** — 增删改查，分类筛选，查看/管理价格历史
 3. **走势分析** — ECharts 折线图，支持多商品对比
 4. **AI 图片识别** — 上传游戏截图，AI 自动识别商品名称和价格，未匹配商品自动创建，批量录入价格
-5. **系统设置** — 在线配置 OCR 地址/模型、修改管理员密码
+5. **Excel 导入** — 上传 .xlsx 文件，自动解析商品名称、日期和价格，事务批量导入
+6. **系统设置** — 在线配置 OCR 地址/模型、修改管理员密码
 
 ---
 
@@ -129,7 +133,8 @@ xyq_product/
 该脚本会依次：
 1. 安装前端依赖并构建（输出到 `server/static/`）
 2. 编译 Go 后端
-3. 初始化数据库（自动建表、创建管理员和分类）
+
+首次运行 `./xyq_product` 时自动初始化数据库（建表、创建管理员和分类）。
 
 ### 手动启动
 
