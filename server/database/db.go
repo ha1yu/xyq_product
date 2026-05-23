@@ -11,7 +11,7 @@ import (
 
 var DB *sql.DB
 
-func InitDB(dbPath string) error {
+func InitDB(dbPath string, defaults map[string]string) error {
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create db directory: %w", err)
@@ -25,6 +25,10 @@ func InitDB(dbPath string) error {
 
 	if err := createTables(); err != nil {
 		return fmt.Errorf("create tables: %w", err)
+	}
+
+	for k, v := range defaults {
+		DB.Exec("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", k, v)
 	}
 
 	return nil
@@ -60,6 +64,10 @@ func createTables() error {
 			username TEXT NOT NULL UNIQUE,
 			password TEXT NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS settings (
+				key TEXT PRIMARY KEY,
+				value TEXT NOT NULL
+			)`,
 	}
 
 	for _, s := range stmts {

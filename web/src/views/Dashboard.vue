@@ -16,6 +16,7 @@
             <span class="user-name"><el-icon><User /></el-icon> 管理员</span>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click="settingsVisible = true">系统设置</el-dropdown-item>
                 <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -58,6 +59,7 @@
         </div>
       </div>
       <PriceTrendDialog v-model="trendVisible" :product="trendProduct" />
+      <SettingsDialog v-model="settingsVisible" />
     </el-main>
   </el-container>
 </template>
@@ -69,6 +71,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import api from '../api'
 import PriceTrendDialog from '../components/PriceTrendDialog.vue'
+import SettingsDialog from '../components/SettingsDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -82,6 +85,7 @@ const activeCategory = ref('all')
 const loading = ref(false)
 const trendVisible = ref(false)
 const trendProduct = ref(null)
+const settingsVisible = ref(false)
 let searchTimer = null
 
 const filteredProducts = computed(() => {

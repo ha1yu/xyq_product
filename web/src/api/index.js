@@ -37,5 +37,9 @@ export default {
   getTrend: (productIds) => api.get('/trend', { params: { product_ids: productIds } }),
   // OCR
   ocrRecognize: (data) => api.post('/ocr', data),
-  batchCreatePrices: (data) => api.post('/prices/batch', data)
+  batchCreatePrices: (data) => api.post('/prices/batch', data),
+  // Settings
+  getSettings: () => api.get('/settings'),
+  updateSettings: (data) => api.put('/settings', data),
+  changePassword: (data) => api.put('/settings/password', data)
 }

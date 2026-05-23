@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log"
@@ -14,6 +15,7 @@ import (
 type OcrHandler struct {
 	Endpoint string
 	Model    string
+	DB       *sql.DB
 }
 
 type ocrRequest struct {
@@ -26,6 +28,17 @@ type OcrItem struct {
 }
 
 func (h *OcrHandler) Recognize(w http.ResponseWriter, r *http.Request) {
+	endpoint := h.Endpoint
+	model := h.Model
+	if h.DB != nil {
+		if v, _ := h.getSetting("ocr_endpoint"); v != "" {
+			endpoint = v
+		}
+		if v, _ := h.getSetting("ocr_model"); v != "" {
+			model = v
+		}
+	}
+
 	var req ocrRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, "invalid request", http.StatusBadRequest)
@@ -41,7 +54,7 @@ func (h *OcrHandler) Recognize(w http.ResponseWriter, r *http.Request) {
 如果没有识别到商品和价格，请输出空数组 []`
 
 	payload := map[string]interface{}{
-		"model": h.Model,
+		"model": model,
 		"messages": []map[string]interface{}{
 			{
 				"role": "user",
@@ -60,7 +73,7 @@ func (h *OcrHandler) Recognize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httpReq, err := http.NewRequest("POST", h.Endpoint, bytes.NewReader(body))
+	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
 	if err != nil {
 		writeError(w, "create request error", http.StatusInternalServerError)
 		return
@@ -160,5 +173,14 @@ func parseOcrResult(content string) []OcrItem {
 
 func fixMissingCommas(s string) string {
 	return regexp.MustCompile(`}\s+{`).ReplaceAllString(s, "},{")
+}
+
+func (h *OcrHandler) getSetting(key string) (string, error) {
+	var val string
+	err := h.DB.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&val)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return val, err
 }
 

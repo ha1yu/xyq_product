@@ -16,6 +16,7 @@
             <span class="user-name"><el-icon><User /></el-icon> 管理员</span>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click="settingsVisible = true">系统设置</el-dropdown-item>
                 <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -41,6 +42,7 @@
       </div>
       <el-empty v-else description="请选择商品查看价格走势" />
     </el-main>
+    <SettingsDialog v-model="settingsVisible" />
   </el-container>
 </template>
 
@@ -54,6 +56,7 @@ import { LineChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useUserStore } from '../stores/user'
+import SettingsDialog from '../components/SettingsDialog.vue'
 import api from '../api'
 
 use([CanvasRenderer, LineChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
@@ -67,6 +70,7 @@ const categories = ref([])
 const products = ref([])
 const selectedProducts = ref([])
 const chartOption = ref(null)
+const settingsVisible = ref(false)
 
 const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4']
 

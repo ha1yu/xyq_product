@@ -27,12 +27,13 @@ xyq_product/
 │   ├── database/
 │   │   ├── db.go             # 数据库初始化 + 建表
 │   │   └── seed.go           # Excel 导入 + 初始数据
-│   ├── handlers/
-│   │   ├── auth.go           # 登录认证
-│   │   ├── category.go       # 分类查询
-│   │   ├── product.go        # 商品 CRUD
-│   │   ├── price.go          # 价格 CRUD + 批量 + 走势
-│   │   └── ocr.go            # AI 图片识别
+│   │   ├── handlers/
+│   │   │   ├── auth.go           # 登录认证
+│   │   │   ├── category.go       # 分类查询
+│   │   │   ├── product.go        # 商品 CRUD
+│   │   │   ├── price.go          # 价格 CRUD + 批量 + 走势
+│   │   │   ├── ocr.go            # AI 图片识别
+│   │   │   └── settings.go       # 系统设置 + 密码修改
 │   ├── middleware/
 │   │   └── auth.go           # JWT 中间件
 │   ├── models/
@@ -49,8 +50,9 @@ xyq_product/
 │   │   │   ├── Products.vue  # 商品管理（CRUD + OCR）
 │   │   │   └── Trend.vue     # 走势分析（ECharts 折线图）
 │   │   └── components/
-│   │       ├── OcrDialog.vue       # 拍照识别录入对话框
-│   │       ├── PriceTrendDialog.vue # 价格走势弹窗（ECharts 折线图）
+│   │       ├── OcrDialog.vue        # 拍照识别录入对话框
+│   │       ├── PriceTrendDialog.vue  # 价格走势弹窗（ECharts 折线图）
+│   │       ├── SettingsDialog.vue    # 系统设置弹窗（OCR 配置 + 密码修改）
 │   │       ├── PriceTable.vue
 │   │       ├── ProductForm.vue
 │   │       └── TrendChart.vue
@@ -66,12 +68,13 @@ xyq_product/
 
 ## 数据库模型
 
-系统使用 4 张 SQLite 表：
+系统使用 5 张 SQLite 表：
 
 - **categories** — 商品分类（消耗品、炼妖石、宝石...共 13 类）
 - **products** — 商品（关联分类，`name` 唯一约束，含备注）
 - **prices** — 价格记录（商品+日期联合唯一）
 - **admins** — 管理员（bcrypt 密码哈希）
+- **settings** — 系统配置（key-value 存储，如 OCR 地址/模型）
 
 ---
 
@@ -91,16 +94,20 @@ xyq_product/
 | POST | `/api/prices/batch` | 是 | 批量录入价格 |
 | GET | `/api/trend` | 否 | 价格走势数据 |
 | POST | `/api/ocr` | 是 | AI 图片识别商品价格 |
+| GET | `/api/settings` | 是 | 获取系统设置 |
+| PUT | `/api/settings` | 是 | 更新系统设置 |
+| PUT | `/api/settings/password` | 是 | 修改管理员密码 |
 
 ---
 
 ## 核心功能
 
-1. **价格总览 Dashboard** — 按分类 Tab 展示所有商品最近3次价格，支持搜索
+1. **价格总览 Dashboard** — 按分类 Tab 卡片网格展示商品最近3次价格，点击查看走势
 2. **商品管理** — 增删改查，分类筛选，查看/管理价格历史
 3. **走势分析** — ECharts 折线图，支持多商品对比
 4. **AI 图片识别** — 上传游戏截图，AI 自动识别商品名称和价格，未匹配商品自动创建，批量录入价格
-5. **Excel 数据导入** — 从 `梦幻将军物价表.xlsx` 导入 132+ 商品、7 个日期价格数据
+5. **系统设置** — 在线配置 OCR 地址/模型、修改管理员密码
+6. **Excel 数据导入** — 从 `梦幻将军物价表.xlsx` 导入 132+ 商品、7 个日期价格数据
 
 ---
 

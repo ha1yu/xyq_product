@@ -16,6 +16,7 @@
             <span class="user-name"><el-icon><User /></el-icon> 管理员</span>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click="settingsVisible = true">系统设置</el-dropdown-item>
                 <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -117,6 +118,7 @@
 
     <!-- OCR Dialog -->
     <OcrDialog v-model="ocrDialogVisible" :products="products" @saved="onOcrSaved" />
+    <SettingsDialog v-model="settingsVisible" />
   </el-container>
 </template>
 
@@ -127,6 +129,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import api from '../api'
 import OcrDialog from '../components/OcrDialog.vue'
+import SettingsDialog from '../components/SettingsDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -156,6 +159,7 @@ const addPriceVisible = ref(false)
 const newPrice = ref({ date: '', price: 0 })
 
 const ocrDialogVisible = ref(false)
+const settingsVisible = ref(false)
 
 let loadTimer = null
 const debouncedLoad = () => {

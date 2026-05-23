@@ -25,7 +25,10 @@ func main() {
 	xlsxPath := flag.String("xlsx", "", "path to xlsx file for seeding")
 	flag.Parse()
 
-	if err := database.InitDB(*dbPath); err != nil {
+	if err := database.InitDB(*dbPath, map[string]string{
+		"ocr_endpoint": *ocrEndpoint,
+		"ocr_model":    *ocrModel,
+	}); err != nil {
 		log.Fatalf("Failed to init database: %v", err)
 	}
 	log.Printf("Database initialized: %s", *dbPath)
@@ -43,7 +46,8 @@ func main() {
 	productH := &handlers.ProductHandler{DB: database.DB}
 	priceH := &handlers.PriceHandler{DB: database.DB}
 	categoryH := &handlers.CategoryHandler{DB: database.DB}
-	ocrH := &handlers.OcrHandler{Endpoint: *ocrEndpoint, Model: *ocrModel}
+	ocrH := &handlers.OcrHandler{Endpoint: *ocrEndpoint, Model: *ocrModel, DB: database.DB}
+	settingsH := &handlers.SettingsHandler{DB: database.DB}
 
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -77,6 +81,25 @@ func main() {
 	mux.HandleFunc("/api/prices/batch", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			middleware.AuthMiddleware(priceH.BatchCreate)(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	})
+
+	// Settings endpoints
+	mux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			middleware.AuthMiddleware(settingsH.GetSettings)(w, r)
+		case http.MethodPut:
+			middleware.AuthMiddleware(settingsH.UpdateSettings)(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/settings/password", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			middleware.AuthMiddleware(settingsH.ChangePassword)(w, r)
 			return
 		}
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

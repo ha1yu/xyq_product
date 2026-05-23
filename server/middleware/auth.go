@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -45,6 +46,9 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 			return
 		}
-		next(w, r)
+		if claims, ok := token.Claims.(*Claims); ok {
+				r = r.WithContext(context.WithValue(r.Context(), "username", claims.Username))
+			}
+			next(w, r)
 	}
 }
