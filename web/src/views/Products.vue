@@ -28,14 +28,14 @@
       <div class="page-title">
         <h2>商品管理</h2>
         <div class="title-actions">
-          <el-button type="warning" @click="importDialogVisible = true">
-            <el-icon><Upload /></el-icon> Excel导入
-          </el-button>
           <el-button type="success" @click="ocrDialogVisible = true" >
             <el-icon><Camera /></el-icon> 拍照识别
           </el-button>
           <el-button type="primary" @click="showAddDialog" >
             <el-icon><Plus /></el-icon> 新增商品
+          </el-button>
+          <el-button type="warning" @click="importDialogVisible = true">
+            <el-icon><Upload /></el-icon> Excel导入
           </el-button>
         </div>
       </div>
@@ -47,21 +47,23 @@
         <el-input v-model="filterKeyword" placeholder="搜索商品" prefix-icon="Search" clearable
           style="width: 250px" @input="debouncedLoad" />
       </div>
-      <el-table :data="products" stripe border style="width:100%" max-height="calc(100vh - 280px)">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="name" label="商品名称" min-width="150" />
-        <el-table-column prop="category_name" label="分类" width="100" />
-        <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
-        <el-table-column label="操作" width="260" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="showPrices(row)">价格记录</el-button>
-            <el-button size="small" type="primary" @click="editProduct(row)"
-              >编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteProduct(row)"
-              >删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="table-wrapper">
+        <el-table :data="products" stripe border height="100%" style="width:100%">
+          <el-table-column prop="id" label="ID" width="60" />
+          <el-table-column prop="name" label="商品名称" min-width="150" />
+          <el-table-column prop="category_name" label="分类" width="100" />
+          <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
+          <el-table-column label="操作" width="260" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" @click="showPrices(row)">价格记录</el-button>
+              <el-button size="small" type="primary" @click="editProduct(row)"
+                >编辑</el-button>
+              <el-button size="small" type="danger" @click="deleteProduct(row)"
+                >删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
     </el-main>
 
     <!-- Add/Edit Dialog -->
@@ -273,19 +275,23 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.app-layout { min-height: 100vh; background: #f5f5f5; }
+.app-layout { height: 100vh; display: flex; flex-direction: column; background: #f5f5f5; overflow: hidden; }
 .app-header {
   background: #1a1a2e; display: flex; align-items: center;
-  justify-content: space-between; padding: 0 20px; height: 60px;
+  justify-content: space-between; padding: 0 20px; height: 60px; flex-shrink: 0;
 }
 .header-left .logo { color: #ffd700; font-size: 20px; font-weight: bold; }
 .header-right { display: flex; align-items: center; gap: 20px; }
 .header-right .el-menu { border-bottom: none; }
 .user-area { color: #e0e0e0; }
 .user-name { color: #e0e0e0; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-.app-main { padding: 20px; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; }
-.page-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.app-main {
+  padding: 20px; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box;
+  flex: 1; overflow: hidden; display: flex; flex-direction: column;
+}
+.page-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
 .page-title h2 { margin: 0; color: #303133; }
 .title-actions { display: flex; gap: 10px; }
-.filter-bar { display: flex; gap: 12px; margin-bottom: 15px; }
+.filter-bar { display: flex; gap: 12px; margin-bottom: 15px; flex-shrink: 0; }
+.table-wrapper { flex: 1; overflow: hidden; }
 </style>
