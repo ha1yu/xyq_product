@@ -37,6 +37,12 @@
           <el-button type="warning" @click="importDialogVisible = true">
             <el-icon><Upload /></el-icon> Excel导入
           </el-button>
+          <el-button type="info" @click="handleBackup">
+            <el-icon><Download /></el-icon> 备份数据
+          </el-button>
+          <el-button type="danger" @click="restoreDialogVisible = true">
+            <el-icon><RefreshRight /></el-icon> 恢复数据
+          </el-button>
         </div>
       </div>
       <div class="filter-bar">
@@ -124,6 +130,7 @@
     <!-- OCR Dialog -->
     <OcrDialog v-model="ocrDialogVisible" :products="products" @saved="onOcrSaved" />
     <ExcelImportDialog v-model="importDialogVisible" @saved="loadProducts" />
+    <BackupRestoreDialog v-model="restoreDialogVisible" @restored="loadProducts" />
     <SettingsDialog v-model="settingsVisible" />
   </el-container>
 </template>
@@ -136,6 +143,7 @@ import { useUserStore } from '../stores/user'
 import api from '../api'
 import OcrDialog from '../components/OcrDialog.vue'
 import ExcelImportDialog from '../components/ExcelImportDialog.vue'
+import BackupRestoreDialog from '../components/BackupRestoreDialog.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
 
 const route = useRoute()
@@ -167,6 +175,7 @@ const newPrice = ref({ date: '', price: 0 })
 
 const ocrDialogVisible = ref(false)
 const importDialogVisible = ref(false)
+const restoreDialogVisible = ref(false)
 const settingsVisible = ref(false)
 
 let loadTimer = null
@@ -260,6 +269,21 @@ const deletePrice = async (row) => {
 
 const onOcrSaved = () => {
   loadProducts()
+}
+
+const handleBackup = async () => {
+  try {
+    const blob = await api.exportBackup()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `梦幻物价备份_${new Date().toISOString().slice(0, 10)}.xlsx`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('备份文件已下载')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.error || '备份失败')
+  }
 }
 
 const handleLogout = () => {

@@ -45,5 +45,10 @@ export default {
   // Import
   importExcel: (formData) => api.post('/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000
+  }),
+  // Backup & Restore
+  exportBackup: () => api.get('/backup', { responseType: 'blob' }),
+  restoreBackup: (formData) => api.post('/backup/restore', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000
   })
 }

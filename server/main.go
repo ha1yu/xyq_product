@@ -40,6 +40,7 @@ func main() {
 	ocrH := &handlers.OcrHandler{Endpoint: *ocrEndpoint, Model: *ocrModel, DB: database.DB}
 	settingsH := &handlers.SettingsHandler{DB: database.DB}
 	importH := &handlers.ImportHandler{DB: database.DB}
+	backupH := &handlers.BackupHandler{DB: database.DB}
 
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -59,6 +60,7 @@ func main() {
 
 	productH.RegisterRoutes(mux)
 	priceH.RegisterRoutes(mux)
+	backupH.RegisterRoutes(mux)
 
 	// OCR endpoint
 	mux.HandleFunc("/api/ocr", func(w http.ResponseWriter, r *http.Request) {
